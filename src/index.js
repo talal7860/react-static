@@ -13,14 +13,14 @@ const failed = {}
 
 let sitePropsPromise
 let routesPromise
-let InitialLoading
+let DefaultLoader
 
 if (process.env.NODE_ENV === 'development') {
   routesPromise = (async () => {
     const res = await axios.get(`${process.env.STATIC_ENDPOINT}/getroutes`)
     return res.data
   })()
-  InitialLoading = () => (
+  DefaultLoader = () => (
     <div
       style={{
         display: 'block',
@@ -215,7 +215,7 @@ function getRouteProps (Comp) {
 
       if (!initialProps) {
         if (process.env.NODE_ENV === 'development') {
-          return <InitialLoading />
+          return <DefaultLoader />
         }
         return null
       }
@@ -265,7 +265,7 @@ function getSiteProps (Comp) {
 
       if (!siteProps) {
         if (process.env.NODE_ENV === 'development') {
-          return <InitialLoading />
+          return <DefaultLoader />
         }
         return null
       }
@@ -396,6 +396,32 @@ class Router extends Component {
   }
 }
 
+function AsyncComponent (importer, { loader = DefaultLoader } = {}) {
+  console.log(importer.toString())
+  return class Async extends Component {
+    constructor (props) {
+      super(props)
+      this.state = {
+        component: null,
+      }
+    }
+
+    async componentWillMount () {
+      const { default: component } = await importer()
+
+      this.setState({
+        component,
+      })
+    }
+
+    render () {
+      const { component: Comp } = this.state
+      const Loader = loader
+      return Comp ? <Comp {...this.props} /> : <Loader />
+    }
+  }
+}
+
 module.exports = {
   ...ReactRouter,
   BrowserRouter: undefined,
@@ -409,4 +435,5 @@ module.exports = {
   PrefetchWhenSeen,
   prefetch,
   Head: Helmet,
+  AsyncComponent,
 }
