@@ -81,7 +81,7 @@ export default class Router extends React.Component {
         // In dev mode, request the templateID and ready the router
         if (process.env.REACT_STATIC_ENV === 'development') {
           try {
-            const routeInfo = await getRouteInfo(path, { priority: true })
+            const routeInfo = await getRouteInfo(path)
             if (routeInfo) {
               registerTemplateIDForPath(path, routeInfo.templateID)
             }
@@ -106,7 +106,7 @@ export default class Router extends React.Component {
         // Clean the path first
         const path = cleanPath(typeof args[0] === 'string' ? args[0] : args[0].path)
         // Determine as quickly as possible if we need to fetch data for this route
-        const shouldPrefetch = await needsPrefetch(path, { priority: true })
+        const shouldPrefetch = await needsPrefetch(path)
 
         // If we need to load...
         if (shouldPrefetch) {

@@ -3,18 +3,20 @@
 require('babel-register')
 require('../lib/utils/binHelper')
 const program = require('commander')
-const startCmd = require('../lib/commands/start')
+const exportCmd = require('../lib/commands/export')
 
 // use commander to parse CLI args
 program
   .option('-c, --config <path>', 'path to custom static.config.js')
+  .option('-s, --staging', 'set to staging mode')
   .option('-d, --debug', 'set to debug mode')
   .parse(process.argv)
 
-const { config, debug } = program
+const { config, staging, debug } = program
 
-startCmd.default({
+exportCmd.default({
   config,
+  staging,
   debug,
   isCLI: true,
 })

@@ -7,8 +7,7 @@ import scrollTo from '../../utils/scrollTo'
 
 const RouterScroller = withRouter(class RouterScroller extends React.Component {
   componentDidMount () {
-    // Do not scroll to top on initial page load if hash does not exist
-    this.scrollToHash({ orScrollToTop: false })
+    this.scrollToHash()
   }
   componentDidUpdate (prev) {
     if (prev.location.pathname !== this.props.location.pathname && !this.props.location.hash) {
@@ -31,7 +30,7 @@ const RouterScroller = withRouter(class RouterScroller extends React.Component {
         })
       }
     }
-    scrollToHash = ({ orScrollToTop = true } = {}) => {
+    scrollToHash = () => {
       const {
         scrollToHashDuration,
         autoScrollToHash,
@@ -63,7 +62,7 @@ const RouterScroller = withRouter(class RouterScroller extends React.Component {
             })
           }
         }
-      } else if (orScrollToTop) {
+      } else {
         scrollTo(0, {
           duration: scrollToHashDuration,
         })

@@ -1,28 +1,14 @@
-/* eslint-disable import/no-dynamic-require, react/no-danger, import/no-mutable-exports */
+/* eslint-disable import/no-dynamic-require, react/no-danger */
 import webpack from 'webpack'
+import path from 'path';
 import formatWebpackMessages from 'react-dev-utils/formatWebpackMessages'
 import chalk from 'chalk'
 import WebpackDevServer from 'webpack-dev-server'
-import io from 'socket.io'
 // import errorOverlayMiddleware from 'react-dev-utils/errorOverlayMiddleware'
 //
 import { getStagedRules } from './rules'
 import { findAvailablePort } from '../../utils'
-import { cleanPath } from '../../utils/shared'
-import { prepareRoutes } from '../'
-
-let resolvedReloadRoutes
-let reloadWebpackRoutes
-
-const reloadRoutes = (...args) => {
-  if (!resolvedReloadRoutes) {
-    // Not ready yet, so just wait
-    return
-  }
-  resolvedReloadRoutes(...args)
-}
-
-export { reloadRoutes }
+import fs from 'fs-extra'
 
 // Builds a compiler using a stage preset, then allows extension via
 // webpackConfigurator
@@ -78,8 +64,6 @@ export async function startDevServer ({ config }) {
   // or environment variables
   const intendedPort = (config.devServer && config.devServer.port) || process.env.PORT || 3000
   const port = await findAvailablePort(Number(intendedPort))
-  // Find an available port for messages, as long as it's not the devServer port
-  const messagePort = await findAvailablePort(4000, [port])
   if (intendedPort !== port) {
     console.time(
       chalk.red(
@@ -106,12 +90,6 @@ export async function startDevServer ({ config }) {
     },
     before: app => {
       // Serve the site data
-      app.get('/__react-static__/getMessagePort', async (req, res) => {
-        res.json({
-          port: messagePort,
-        })
-      })
-
       app.get('/__react-static__/siteData', async (req, res, next) => {
         try {
           const siteData = await config.getSiteData({ dev: true })
@@ -123,34 +101,24 @@ export async function startDevServer ({ config }) {
         }
       })
 
-      // Since routes may change during dev, this function can rebuild all of the config
-      // routes. It also references the original config when possible, to make sure it
-      // uses any up to date getData callback generated from new or replacement routes.
-      reloadWebpackRoutes = () => {
-        // Serve each routes data
-        config.routes.forEach(({ path: routePath }) => {
-          app.get(
-            `/__react-static__/routeInfo/${encodeURI(routePath === '/' ? '' : routePath)}`,
-            async (req, res, next) => {
-              // Make sure we have the most up to date route from the config, not
-              // an out of dat object.
-              const route = config.routes.find(d => d.path === routePath)
-              try {
-                const allProps = route.getData ? await route.getData({ dev: true }) : {}
-                res.json({
-                  ...route,
-                  allProps,
-                })
-              } catch (err) {
-                res.status(500)
-                next(err)
-              }
+      // Serve each routes data
+      config.routes.forEach(route => {
+        app.get(
+          `/__react-static__/routeInfo/${encodeURI(route.path === '/' ? '' : route.path)}`,
+          async (req, res, next) => {
+            try {
+              const allProps = route.getData ? await route.getData({ dev: true }) : {}
+              res.json({
+                ...route,
+                allProps,
+              })
+            } catch (err) {
+              res.status(500)
+              next(err)
             }
-          )
-        })
-      }
-
-      reloadWebpackRoutes()
+          }
+        )
+      })
 
       if (config.devServer && config.devServer.before) {
         config.devServer.before(app)
@@ -208,22 +176,7 @@ export async function startDevServer ({ config }) {
   console.log('=> Building App Bundle...')
   console.time(chalk.green('=> [\u2713] Build Complete'))
 
-  // Start the webpack dev server
   const devServer = new WebpackDevServer(devCompiler, devServerConfig)
-
-  // Start the messages socket
-  const socket = io()
-  socket.listen(messagePort)
-
-  resolvedReloadRoutes = async paths => {
-    await prepareRoutes(config, { dev: true })
-    if (!paths) {
-      paths = config.routes.map(route => route.path)
-    }
-    paths = paths.map(cleanPath)
-    reloadWebpackRoutes()
-    socket.emit('message', { type: 'reloadRoutes', paths })
-  }
 
   return new Promise((resolve, reject) => {
     devServer.listen(port, err => {
@@ -290,7 +243,15 @@ export async function buildProductionBundles ({ config }) {
         }
       }
 
-      resolve(prodStats.toJson())
+      const prodStatsJson = prodStats.toJson()
+
+
+      fs.outputFileSync(
+        path.join(config.paths.DIST, 'client-stats.json'),
+        JSON.stringify(prodStatsJson, null, 2)
+      )
+
+      resolve(prodStatsJson)
     })
   })
 }
